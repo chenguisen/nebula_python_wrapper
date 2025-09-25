@@ -32,8 +32,8 @@ import numpy as np
 # 总之，电子束和离子束都不用倾转。
 
 rotate_angle_start = 0  # 绕x轴旋转旋转一定角度后，以样品新的法线方向为轴的旋转角度,单位为度
-rotate_angle_stop = 360  # 旋转终止角度
-rotate_angle_step = 5  # 旋转步长
+rotate_angle_stop = 90  # 旋转终止角度
+rotate_angle_step = 45  # 旋转步长
 rotate_angle_list = np.arange(rotate_angle_start, rotate_angle_stop, rotate_angle_step)
 roi_array = [-256, 255, -456, 55]  # [roi_x_min, roi_x_max, roi_y_min, roi_y_max]
 sample_tilt_x = 55  # 样品绕x轴旋转的角度
@@ -41,13 +41,13 @@ pixel_size = 2  # 像素大小，单位为nm
 energy = 500  # 电子束能量，单位为keV
 epx = 500  # 每像素电子数
 
-stl_path = pathlib.Path('/home/chenguisen/AISI/nebula/nebula_python_wrapper/simulation_results/4_Trench Milling.stl')
+stl_path = pathlib.Path('/home/chenguisen/AISI/nebula/simulation_results/4_Trench Milling.stl')
 mesh_path = os.path.join(os.path.dirname(stl_path))
 
-mat_paths_list =["/home/chenguisen/AISI/nebula/nebula_python_wrapper/data/silicon.mat"]
+mat_paths_list =["/home/chenguisen/AISI/nebula/data/silicon.mat"]
 
 nebula_gpu_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/source/nebula_gpu"
-output_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/simulation_results/output.det"
+output_path = "/home/chenguisen/AISI/nebula/simulation_results/output.det"
 pri_file_path = None
 for rotate_angle in rotate_angle_list:
     print(f"rotate_angle: {rotate_angle}",'\n\n')

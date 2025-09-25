@@ -1,5 +1,5 @@
 import subprocess
-from sem_analysis import sem_analysis
+from analysis import sem_analysis
 class nebula_gpu:
     def __init__(self, command, sem_simu_result:str, image_path:str):
         super().__init__()

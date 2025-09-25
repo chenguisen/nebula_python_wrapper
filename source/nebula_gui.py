@@ -16,7 +16,7 @@ from PyQt6.QtCore import QSettings
 
 from sem_pri import generate_sem_pri_data
 from voxel_to_mesh import run_interface
-from sem_analysis import sem_analysis
+
 
 class NebulaGUI(QMainWindow):
     def __init__(self):
@@ -714,13 +714,58 @@ class WorkerThread(QThread):
         #     self.log_signal.emit(error_msg)
             
     def show_image(self):
-        # 自动调用 sem_analysis.py  
-        from sem_analysis import sem_analysis
-        plot = True
-        save = True
-        self.log_signal.emit(f"开始调用 sem_analysis.py 展示图像，输出文件: {self.output_file}")      
-        sem_analysis(self.output_file, self.image_path, plot=plot, save=save)
-        self.log_signal.emit(f"sem_analysis.py 执行完成，图像已保存至: {self.image_path}")
+        # 自动调用 sem-analysis.py
+        try:
+            self.log_signal.emit(f"开始调用 sem-analysis.py 展示图像，输出文件: {self.output_file}")
+            
+            # 定义脚本路径
+            import os
+            import sys
+            
+            # 获取当前脚本所在目录
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            primary_script_path = os.path.join(current_dir, "sem-analysis.py")
+            
+            # 如果当前目录下没有，则尝试使用相对路径
+            if not os.path.exists(primary_script_path):
+                primary_script_path = "sem-analysis.py"
+            
+            # 使用系统Python解释器
+            python_path = sys.executable
+            
+            # 检查主要路径是否存在
+            if not os.path.exists(primary_script_path):
+                self.log_signal.emit(f"未找到 sem-analysis.py，请确保该文件在当前目录或指定路径下")
+                return
+            else:
+                script_path = primary_script_path
+                
+            analysis_process = subprocess.Popen(
+                [python_path, script_path, self.output_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                bufsize=0
+            )
+            for output in analysis_process.stdout:
+                if output:
+                    output_stripped = output.strip()
+                    self.log_signal.emit(output_stripped)
+            
+            # 过滤GTK警告信息
+            for error in analysis_process.stderr:
+                if error:
+                    error_stripped = error.strip()
+                    # 过滤掉GTK相关的警告信息
+                    if not ("Gtk-CRITICAL" in error_stripped or 
+                            "gtk_tree_view_scroll_to_cell" in error_stripped or
+                            "assertion" in error_stripped):
+                        self.log_signal.emit(error_stripped)
+            analysis_process.wait()
+            self.log_signal.emit(f"sem-analysis.py 执行完成，返回码: {analysis_process.returncode}")
+        except Exception as e:
+            error_msg = f"调用 sem-analysis.py 时发生异常: {str(e)}"
+            self.log_signal.emit(error_msg)
        
 class PriGeneratorWorker(QThread):
     """工作线程，仅用于生成.pri文件"""
