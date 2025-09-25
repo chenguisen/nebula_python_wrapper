@@ -37,7 +37,9 @@ rotate_angle_step = 5  # 旋转步长
 rotate_angle_list = np.arange(rotate_angle_start, rotate_angle_stop, rotate_angle_step)
 roi_array = [-256, 255, -456, 55]  # [roi_x_min, roi_x_max, roi_y_min, roi_y_max]
 sample_tilt_x = 55  # 样品绕x轴旋转的角度
-
+pixel_size = 2  # 像素大小，单位为nm
+energy = 500  # 电子束能量，单位为keV
+epx = 500  # 每像素电子数
 
 stl_path = pathlib.Path('/home/chenguisen/AISI/nebula/nebula_python_wrapper/simulation_results/4_Trench Milling.stl')
 mesh_path = os.path.join(os.path.dirname(stl_path))
@@ -66,9 +68,9 @@ for rotate_angle in rotate_angle_list:
     if rotate_angle == rotate_angle_start:
         PRI = pri_parameters(
             mesh_path=mesh_path,
-            pixel_size=2,  # 像素大小，单位为nm
-            energy=500,
-            epx=500,       # 每像素电子数
+            pixel_size=pixel_size,  # 像素大小，单位为nm
+            energy=energy,
+            epx=epx,       # 每像素电子数
             sigma=1.0,    # 高斯模糊参数，默认为1.0
             poisson=True,
             roi_x_min=roi_array[0],
