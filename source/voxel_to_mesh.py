@@ -12,14 +12,15 @@ import random
 import math
 import trimesh  # 用于读取STL文件
 from rotation_matrix import rotation_matrix
-def generate_mesh_from_stl(stl_path, output_path, final_side=1000, sample_tilt_x=0, sample_tilt_new_z=0, sample_tilt_y=0, det_tilt_x=0, det_tilt_y=0):  # final_side设置为1000
+def generate_mesh_from_stl(stl_path, output_path, final_side=1000, scale=10, sample_tilt_x=0, sample_tilt_new_z=0, sample_tilt_y=0, det_tilt_x=0, det_tilt_y=0):  # final_side设置为1000
     """
     从STL文件生成网格
     
     参数:
         stl_path: STL文件路径
         output_path: 输出路径
-        final_side: 最终网格大小
+        final_side: 最终网格大小。目前设置为模型实际的大小。
+        scale: 缩放因子。目前设置为10，将1微米视为0.001微米，然后转为纳米，纯粹为了加速计算。
         tilt_x: X轴旋转角度
         tilt_y: Y轴旋转角度
         pad_scale: 填充缩放因子
@@ -37,7 +38,8 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, sample_tilt_x
     
     
     #verts = torch.tensor(mesh.vertices * 1000, dtype=torch.float32).cuda()   # 获取顶点和面，并把顶点坐标从微米转为纳米
-    verts = torch.tensor(mesh.vertices * 10, dtype=torch.float32).cuda()   # 获取顶点和面，并把顶点坐标视为0.001倍的微米单位，并把0.001微米单位转为纳米，纯粹为了加速计算。  
+    # 如果stl模型的单位为微米，获取顶点和面，并把顶点坐标视为0.001倍的微米单位，并把0.001微米单位转为纳米，纯粹为了加速计算。  
+    verts = torch.tensor(mesh.vertices * scale, dtype=torch.float32).cuda()   
     #verts = torch.tensor(mesh.vertices * 10, dtype=torch.float32).cuda()
     faces = torch.tensor(mesh.faces, dtype=torch.int32).cuda()
     t_end = time.time()
@@ -50,9 +52,9 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, sample_tilt_x
     bbox_max = torch.max(verts, dim=0).values
     bbox_size = bbox_max - bbox_min
     
-    # 计算缩放因子，使模型适应指定大小
+    # 计算缩放因子，使模型适应指定大小。这里的处理暂时不用这个final_side来控制大小
     final_side = max(bbox_size)
-    scale = final_side / max(bbox_size)
+    final_size_scale = final_side / max(bbox_size)
     #print(f"缩放因子: {scale:.6f}")
     # 复制顶点进行变换
     v = verts.clone()
@@ -61,7 +63,7 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, sample_tilt_x
     v -= (bbox_min + bbox_max) / 2
     
     # 应用缩放
-    v *= scale
+    v *= final_size_scale
     
     # 预先定义旋转变量，避免在后续代码中未定义的问题
     cos_tx = cos_ty = 1.0
@@ -513,7 +515,7 @@ def sanitize_path(path):
     # 转换为Path对象，保留原始文件名
     return pathlib.Path(str(path))
 
-def run_interface(voxel_path, mesh_path, final_side=1000, sample_tilt_x=0, sample_tilt_y=0, sample_tilt_new_z=0, det_tilt_x=0, pad_scale=1.0, length=64, reverse=False):  # final_side设置为1000
+def run_interface(voxel_path, mesh_path, final_side=1000, scale=10, sample_tilt_x=0, sample_tilt_y=0, sample_tilt_new_z=0, det_tilt_x=0, pad_scale=1.0, length=64, reverse=False):  # final_side设置为1000
     """
     运行接口函数，将体素数据转换为网格数据并保存。
 
@@ -548,7 +550,7 @@ def run_interface(voxel_path, mesh_path, final_side=1000, sample_tilt_x=0, sampl
         
         # 检查文件扩展名，如果是STL文件，则调用STL处理函数
         if str(voxel_path).lower().endswith('.stl'):
-            return generate_mesh_from_stl(voxel_path, mesh_path, final_side, sample_tilt_x, sample_tilt_new_z, sample_tilt_y, det_tilt_x = det_tilt_x)
+            return generate_mesh_from_stl(stl_path=voxel_path, output_path=mesh_path, final_side=final_side, scale=scale, sample_tilt_x=sample_tilt_x, sample_tilt_y=sample_tilt_y, sample_tilt_new_z=sample_tilt_new_z, det_tilt_x = det_tilt_x)
         # else:
         #     return generate_mesh_from_voxel(voxel_path, mesh_path, final_side, sample_tilt_x, sample_tilt_y, pad_scale, length, reverse)
     except Exception as e:

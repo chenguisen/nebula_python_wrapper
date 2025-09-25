@@ -17,6 +17,7 @@ class tri_parameters:
         """
         self.stl_path = stl_path
         self.mesh_path = mesh_path
+        self.scale = 10
         self.beam_type = beam_type
         self.sample_tilt_x = sample_tilt_x
         self.sample_tilt_y = sample_tilt_y  # 样品绕y轴旋转的角度，暂时设为和x轴相同
@@ -27,7 +28,8 @@ class tri_parameters:
     def run(self):
         return run_interface(
                     voxel_path=self.stl_path, 
-                    mesh_path=self.mesh_path, 
+                    mesh_path=self.mesh_path,
+                    scale=self.scale, 
                     sample_tilt_x=self.sample_tilt_x,
                     sample_tilt_y=self.sample_tilt_y, 
                     sample_tilt_new_z=self.sample_tilt_new_z,

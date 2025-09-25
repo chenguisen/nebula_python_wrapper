@@ -1,7 +1,6 @@
 import sys
 import os
 import numpy as np
-from skimage.io import imsave
 import matplotlib.pyplot as plt
 import numpy as np
 def sem_analysis(sem_simu_result,image_path, plot = False, save = False):
@@ -48,6 +47,6 @@ def sem_analysis(sem_simu_result,image_path, plot = False, save = False):
 		plt.show()
 
 if __name__ == '__main__':
-	sem_simu_result='/home/chenguisen/AISI/nebula/nebula_python_wrapper/data/output.det'
-	image_path='/home/chenguisen/AISI/nebula/nebula_python_wrapper/simulation_results/output.png'
+	sem_simu_result='/home/chenguisen/AISI/nebula/data/output.det'
+	image_path='/home/chenguisen/AISI/nebula/data/output.png'
 	sem_analysis(sem_simu_result, image_path, plot=True, save=True)
