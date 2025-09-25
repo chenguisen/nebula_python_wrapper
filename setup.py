@@ -8,6 +8,8 @@ setup(
     install_requires=[
         'numpy',
         'matplotlib',
+        'PyQt6',
+        'PyQt6-WebEngine',
     ],
     entry_points={
         'console_scripts': [
