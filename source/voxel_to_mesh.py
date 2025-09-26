@@ -1,13 +1,13 @@
 import os
 os.environ['PYOPENGL_PLATFORM'] = 'egl' 
-import ctypes
-ctypes.cdll.LoadLibrary('/usr/lib/x86_64-linux-gnu/libGL.so')
+# import ctypes
+# ctypes.cdll.LoadLibrary('/usr/lib/x86_64-linux-gnu/libGL.so')
 import pathlib
 from skimage import io
 import time
 import numpy as np
 import torch
-from torchmcubes import marching_cubes
+#from torchmcubes import marching_cubes
 import random
 import math
 import trimesh  # 用于读取STL文件
@@ -39,9 +39,9 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, scale=10, sam
     
     #verts = torch.tensor(mesh.vertices * 1000, dtype=torch.float32).cuda()   # 获取顶点和面，并把顶点坐标从微米转为纳米
     # 如果stl模型的单位为微米，获取顶点和面，并把顶点坐标视为0.001倍的微米单位，并把0.001微米单位转为纳米，纯粹为了加速计算。  
-    verts = torch.tensor(mesh.vertices * scale, dtype=torch.float32).cuda()   
+    verts = torch.tensor(mesh.vertices * scale, dtype=torch.float32).to('cuda' if torch.cuda.is_available() else 'cpu')   
     #verts = torch.tensor(mesh.vertices * 10, dtype=torch.float32).cuda()
-    faces = torch.tensor(mesh.faces, dtype=torch.int32).cuda()
+    faces = torch.tensor(mesh.faces, dtype=torch.int32).to('cuda' if torch.cuda.is_available() else 'cpu')
     t_end = time.time()
     
     #(f"顶点数: {verts.size(0)}, 面片数: {faces.size(0)}, 用时: {t_end - t_start:.1f}s")
@@ -89,7 +89,7 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, scale=10, sam
             # 计算新的Z轴方向（样品表面法线方向）- 预计算常量
             # 当样品倾转角为55度时，新的Z轴方向为 [0, -sin(55°), cos(55°)]
             # rotation_axis = torch.tensor([0, -sin_tx, cos_tx], device=v.device)
-            R = torch.tensor(rotation_matrix(tilt_x=sample_tilt_x, rotate_angle=sample_tilt_new_z), dtype=torch.float32).cuda()
+            R = torch.tensor(rotation_matrix(tilt_x=sample_tilt_x, rotate_angle=sample_tilt_new_z), dtype=torch.float32).to('cuda' if torch.cuda.is_available() else 'cpu')
             points = torch.stack([v[:, 0], v[:, 1], v[:, 2]], dim=1)
             rotated_points = torch.mm(points, R.T)  # 矩阵乘法
 
@@ -105,7 +105,7 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, scale=10, sam
             # # 绕 Y 轴旋转后的旋转轴方向（新的 Z 轴方向）
             # rotation_axis = torch.tensor([sin_ty, 0, cos_ty], device=v.device)
             R = rotation_matrix(tilt_y=sample_tilt_y, rotate_angle=sample_tilt_new_z)
-            R = torch.tensor(R, dtype=torch.float32).cuda()
+            R = torch.tensor(R, dtype=torch.float32).to('cuda' if torch.cuda.is_available() else 'cpu')
             points = torch.stack([v[:, 0], v[:, 1], v[:, 2]], dim=1)
             rotated_points = torch.mm(points, R.T)  # 矩阵乘法
 
@@ -390,7 +390,7 @@ def generate_mesh_from_voxel(voxel_path, output_path, final_side=1000, tilt_x=0,
     print(f"体素数据尺寸: {voxel.shape}, 使用区域: z={z_start}:{z_start+actual_length}, x={x_start}:{x_start+actual_side_x}, y={y_start}:{y_start+actual_side_y}")
     u = torch.from_numpy(voxel[z_start:z_start+actual_length, x_start:x_start+actual_side_x, y_start:y_start+actual_side_y].astype(np.float32))
     pad3d = (1, 1, 1, 1, 1, 1)
-    u = 1 - u.cuda() if reverse else u.cuda()
+    u = 1 - u.to('cuda' if torch.cuda.is_available() else 'cpu') if reverse else u.to('cuda' if torch.cuda.is_available() else 'cpu')
         
     u = torch.nn.functional.pad(u, pad3d, 'constant', 0)
     t_start = time.time()

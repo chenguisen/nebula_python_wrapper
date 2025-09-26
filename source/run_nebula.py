@@ -1,4 +1,7 @@
 import subprocess
+import threading
+import time
+import platform
 from analysis import sem_analysis
 class nebula_gpu:
     def __init__(self, command, sem_simu_result:str, image_path:str):
@@ -8,63 +11,81 @@ class nebula_gpu:
         self.image_path = image_path
     def run(self):
         try:
-            import select
             import time
             import re
+            import platform
+            import threading
+            
+            # 打印调试信息
+            print(f"[DEBUG] 执行命令: {self.command}")
+            print(f"[DEBUG] 操作系统: {platform.system()}")
+            
+            # 所有平台都使用 Popen 并监听输出
+            print(f"[INFO] 在 {platform.system()} 平台上执行命令")
+            
+            # 创建进程
             process = subprocess.Popen(
                 self.command,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,
-                bufsize=0  # 无缓冲模式
+                bufsize=1  # 行缓冲
             )
-
-            progress_completed = False
-            progress_100_time = None
-            # 使用 select 监听标准输出和错误
-            while True:
-                reads = [process.stdout.fileno(), process.stderr.fileno()]
-                ret = select.select(reads, [], [])
-                for fd in ret[0]:                                           
-                    if fd == process.stderr.fileno():
-                        error = process.stderr.readline()
-                        if error:
-                            error_stripped = error.strip()
-                            print(error_stripped)
-                            # 检测是否为detected: 0
-                            if "running: 0 | detected: 0" in error_stripped:
-                                message = "检测到detected: 0，需要对输入进行优化"
-                                print(message)
-                                process.terminate()
-                                return_code = 1
-                                message2 = "nebula_gpu 运行结束，未检测到有效数据，请优化输入"
-                                print(message2)
-                                return
-                            
-                            # 检测进度是否为100.00%
-                            if "Progress 100.00%" in error_stripped and not progress_completed:                       
-                                message = "检测到进度100.00%，将在20秒后终止进程并展示结果"
-                                print(message)
-                                progress_completed = True
-                                progress_100_time = time.time()
-                                
-                            # 如果已经检测到100%进度且已经过了5秒，则终止进程
-                            if progress_completed and progress_100_time is not None and time.time() - progress_100_time >= 20:
-                                message1 = "如果等待20秒完成，进程未自然结束，则终止进程并展示结果"
-                                print(message1)
-                                process.terminate()
-                                message2 = "nebula_gpu 运行成功！"
-                                print(message2)
-                                self.show_image(plot=False, save=True)
-                                return
-
-                # 检查进程是否自然结束
-                if process.poll() is not None:
-                    message2 = "nebula_gpu 运行成功！"
-                    print(message2)
+            
+            # 监听输出的函数
+            def monitor_output(pipe, is_error=False):
+                progress_completed = False
+                progress_100_time = None
+                
+                for line in iter(pipe.readline, ''):
+                    line_stripped = line.strip()
+                    print(line_stripped)
+                    
+                    # 检测是否为detected: 0
+                    if "running: 0 | detected: 0" in line_stripped:
+                        print("检测到detected: 0，需要对输入进行优化")
+                        process.terminate()
+                        print("nebula_gpu 运行结束，未检测到有效数据，请优化输入")
+                        return False
+                    
+                    # 检测进度是否为100.00%
+                    if "Progress 100.00%" in line_stripped and not progress_completed:
+                        print("检测到进度100.00%，将在20秒后终止进程并展示结果")
+                        progress_completed = True
+                        progress_100_time = time.time()
+                    
+                    # 如果已经检测到100%进度且已经过了20秒，则终止进程
+                    if progress_completed and progress_100_time is not None and time.time() - progress_100_time >= 20:
+                        print("如果等待20秒完成，进程未自然结束，则终止进程并展示结果")
+                        process.terminate()
+                        print("nebula_gpu 运行成功！")
+                        return True
+                
+                return None
+            
+            # 创建线程监听stderr
+            stderr_thread = threading.Thread(target=monitor_output, args=(process.stderr, True))
+            stderr_thread.daemon = True
+            stderr_thread.start()
+            
+            # 等待进程完成或被终止
+            return_code = process.wait()
+            
+            # 检查进程是否正常结束
+            if return_code == 0:
+                print("nebula_gpu 运行成功！")
+                self.show_image(plot=False, save=True)
+                return
+            else:
+                print(f"[WARNING] nebula_gpu 进程返回非零状态码: {return_code}")
+                # 尝试显示图像，即使进程返回非零状态码
+                try:
                     self.show_image(plot=False, save=True)
-                    break
+                except Exception as e:
+                    print(f"[ERROR] 显示图像失败: {e}")
+                return
+            # 所有平台都使用相同的监听方法，不再需要区分
 
         except Exception as e:
             error_msg = f"调用 nebula_gpu 时发生异常: {str(e)}"

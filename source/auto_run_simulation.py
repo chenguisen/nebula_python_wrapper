@@ -3,6 +3,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 import pathlib
+import shlex
 
 # 导入现有模块的功能
 from parameters import tri_parameters, pri_parameters
@@ -41,13 +42,15 @@ pixel_size = 2  # 像素大小，单位为nm
 energy = 500  # 电子束能量，单位为keV
 epx = 500  # 每像素电子数
 
-stl_path = pathlib.Path('/home/chenguisen/AISI/nebula/simulation_results/4_Trench Milling.stl')
+stl_path = pathlib.Path('D:/AISI/ZZZ/nebula_data/4_Trench Milling.stl')
 mesh_path = os.path.join(os.path.dirname(stl_path))
 
-mat_paths_list =["/home/chenguisen/AISI/nebula/data/silicon.mat"]
+mat_paths_list =[pathlib.Path('D:/AISI/ZZZ/nebula_data/silicon.mat')]
 
-nebula_gpu_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/source/nebula_gpu"
-output_path = "/home/chenguisen/AISI/nebula/simulation_results/output.det"
+#nebula_gpu_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/source/nebula_gpu"
+import platform
+nebula_gpu_path = pathlib.Path("D:/AISI/ZZZ/nebula_python_wrapper/source/mynebula.exe" if platform.system() == "Windows" else "mynebula")
+output_path = pathlib.Path("D:/AISI/ZZZ/nebula_data/output.det")
 pri_file_path = None
 for rotate_angle in rotate_angle_list:
     print(f"rotate_angle: {rotate_angle}",'\n\n')
@@ -86,8 +89,8 @@ for rotate_angle in rotate_angle_list:
         
     print(f".pri 文件已生成，路径: {pri_file_path}")
         
-    # 将mat_paths_list中的路径用空格分隔，并用引号引起来
-    mat_paths_quoted = " ".join(mat_paths_list)
+    # 将mat_paths_list中的路径直接用空格分隔，不使用shlex.quote
+    mat_paths_quoted = " ".join(str(path) for path in mat_paths_list)
     import shlex
     import pathlib
 
@@ -101,17 +104,29 @@ for rotate_angle in rotate_angle_list:
 
 
 
-    # 转义特殊字符
-    command = f"{shlex.quote(str(nebula_gpu_path))} {shlex.quote(str(tri_file_path))} {shlex.quote(str(pri_file_path))} {shlex.quote(mat_paths_quoted)} > {shlex.quote(str(output_path))}"
+    # 适配多平台，保持原有命令格式 "nebula_gpu sem.tri sem.pri silicon.mat pmma.mat > output.det"
+    if platform.system() == "Windows":
+        # Windows 下使用 cmd /c 执行重定向
+        command = f'"{nebula_gpu_path}" "{tri_file_path}" "{pri_file_path}" {mat_paths_quoted} > "{output_path}"'
+    else:
+        # Linux/Mac 下使用相同格式
+        command = f'"{nebula_gpu_path}" "{tri_file_path}" "{pri_file_path}" {mat_paths_quoted} > "{output_path}"'
+    
     print(f"运行命令: {command}")
     image_path = pathlib.Path(tri_file_path).with_suffix(".png")
     
-    NEBULA = nebula_gpu(
-        command=command,
-        sem_simu_result=output_path,
-        image_path=image_path,
-    )
-    NEBULA.run()
+    try:
+        print(f"[DEBUG] 完整命令: {command}")
+        NEBULA = nebula_gpu(
+            command=command,
+            sem_simu_result=output_path,
+            image_path=image_path,
+        )
+        NEBULA.run()
+    except Exception as e:
+        print(f"[ERROR] 调用 nebula_gpu 时发生异常: {e}")
+        print(f"[提示] 尝试直接在终端中运行命令: {command}")
+        raise
     #NEBULA.show_image(plot=False, save=True)
     print(f"图像已保存至: {image_path}")
 
