@@ -2,199 +2,195 @@
 
 ## 简介
 
-Nebula Python Wrapper 是一个用于分析 Nebula 模拟结果的 Python 工具集。本指南将帮助您了解如何安装、配置和使用该工具进行扫描电子显微镜(SEM)和离子束成像的模拟与分析。
+Nebula Python Wrapper 是一组用于运行与分析 Nebula 仿真结果的 Python 脚本与工具集。本文档将帮助你安装、配置并使用这些脚本完成扫描电子显微镜（SEM）与离子束成像相关的仿真、数据转换与可视化，同时也包含一个“图像转视频”的桌面 GUI 工具。
+
+更新日期：2025-09-30
 
 ## 目录
 
 1. [安装指南](#1-安装指南)
 2. [快速入门](#2-快速入门)
-3. [图形用户界面使用](#3-图形用户界面使用)
-4. [命令行工具使用](#4-命令行工具使用)
-5. [编程接口使用](#5-编程接口使用)
+3. [图形界面：图像转视频](#3-图形界面图像转视频)
+4. [命令/脚本入口](#4-命令脚本入口)
+5. [编程接口使用（示例）](#5-编程接口使用示例)
 6. [常见工作流程](#6-常见工作流程)
 7. [文件格式说明](#7-文件格式说明)
 8. [常见问题解答](#8-常见问题解答)
 9. [故障排除](#9-故障排除)
 10. [高级功能](#10-高级功能)
+11. [更多资料](#11-更多资料)
 
 ## 1. 安装指南
 
 ### 系统要求
 
-- Python 3.6 或更高版本
-- 支持 CUDA 的 GPU（可选，用于加速计算）
-- 至少 8GB RAM（推荐 16GB 或更多）
-- 至少 10GB 可用磁盘空间
+- Python 3.9+（建议）
+- Linux 优先支持；其他平台可按依赖情况尝试
+- GPU 可选（用于加速），CPU 同样可用
+- 建议 16GB 内存以上，磁盘空间 ≥ 10GB
 
 ### 安装步骤
 
-1. **克隆仓库**
+1. 克隆仓库
 
    ```bash
-   git clone https://github.com/your-username/nebula_python_wrapper.git
+   git clone https://github.com/chenguisen/nebula_python_wrapper.git
    cd nebula_python_wrapper
    ```
 
-2. **安装依赖**
+2. 安装依赖
 
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **安装包**
+3. 可选：开发模式安装（便于后续开发）
 
    ```bash
    pip install -e .
    ```
 
-4. **验证安装**
+4. 可选：验证环境
 
    ```bash
-   python -c "import nebula_python_wrapper; print('安装成功')"
+   python -V
+   pip list | grep opencv
    ```
+
+提示：本项目新增了“图像转视频”工具，依赖 opencv-python 与 PyQt6，requirements.txt 已包含。
 
 ## 2. 快速入门
 
 ### 基本概念
 
-Nebula Python Wrapper 主要处理以下类型的数据：
+项目涉及的主要数据类型：
 
-- **STL 文件**：3D 模型的标准格式
-- **TRI 文件**：包含材质信息的三角形网格文件
-- **PRI 文件**：电子束数据文件
-- **DET 文件**：探测器输出文件
+- STL：3D 模型的标准格式
+- TRI：含材质标记的三角网格（Nebula 输入之一）
+- PRI：电子/离子束像素扫描数据（Nebula 输入之一）
+- DET：探测器输出数据（Nebula 输出）
 
-### 简单示例
+### 快速示例
 
-以下是一个简单的工作流程示例：
-
-1. **准备 STL 模型**
-
-   将您的 3D 模型保存为 STL 格式，并放置在 `data` 目录中。
-
-2. **转换为 TRI 格式**
-
-   ```bash
-   python source/process_stl_to_tri.py data/your_model.stl data/your_model.tri
-   ```
-
-3. **生成 PRI 文件**
-
-   ```bash
-   python -c "from source.sem_pri import generate_sem_pri_data; import numpy as np; generate_sem_pri_data(150, np.linspace(-128, 128, 512), np.linspace(-128, 128, 512), file_path='data/sem.pri')"
-   ```
-
-4. **运行模拟**
-
-   ```bash
-   ./run_tri_pri_generator.sh
-   ```
-
-5. **查看结果**
-
-   结果文件将保存在 `data` 目录中。
-
-## 3. 图形用户界面使用
-
-Nebula Python Wrapper 提供了一个基于 PyQt6 的图形用户界面，使您能够更直观地操作。
-
-### 启动界面
+方式 A：一键跑通 SEM 仿真（推荐）
 
 ```bash
-python source/nebula_gui.py
+python source/auto_run_simulation.py
 ```
 
-### 界面概述
+在运行前，可在脚本顶部修改以下参数：
+- `mat_paths_list`：材料 .mat 文件列表
+- `nebula_gpu_path`：Nebula 可执行程序路径（确保存在且可执行）
+- `stl_dir`：输入 STL 所在目录
+- 其他：`pixel_size`、`energy`、`epx`、倾转角与旋转列表等
 
-界面分为以下几个主要选项卡：
+方式 B：图像转视频 GUI（将多张图片合成为视频）
 
-1. **Nebula GPU 参数配置**：配置 Nebula GPU 的运行参数
-2. **TRI 和 PRI 生成器**：生成和处理 TRI 和 PRI 文件
+```bash
+python source/images_to_video_gui.py
+```
 
-### Nebula GPU 参数配置
+该 GUI 支持多选图片、排序、设置帧率/分辨率/质量，并自动适配编码器（HEVC→H.264→mp4v 回退）。
 
-在此选项卡中，您可以：
+## 3. 图形界面：图像转视频
 
-1. **选择 nebula_gpu 路径**：指定 nebula_gpu 可执行文件的路径
-2. **选择输入文件**：
-   - .tri 文件：三角形网格文件
-   - .pri 文件：电子束数据文件
-   - .mat 文件：材料属性文件（可多选）
-3. **设置输出文件**：指定输出文件的路径
-4. **配置运行参数**：设置各种模拟参数
-5. **执行模拟**：点击"运行"按钮开始模拟
+本仓库提供一个 PyQt6 桌面应用，将多张图片快速合成为 MP4/AVI 视频。
 
-### TRI 和 PRI 生成器
+### 启动
 
-在此选项卡中，您可以：
+```bash
+python source/images_to_video_gui.py
+```
 
-1. **STL 到 TRI 转换**：
-   - 选择 STL 文件
-   - 设置转换参数
-   - 生成 TRI 文件
-2. **PRI 文件生成**：
-   - 设置电子束参数
-   - 配置像素范围和分辨率
-   - 生成 PRI 文件
-3. **样品和探测器设置**：
-   - 调整样品倾转角
-   - 设置探测器倾转角
-   - 选择成像模式（电子束或离子束）
+### 功能要点
 
-## 4. 命令行工具使用
+- 图片导入：选择图片/添加更多/从文件夹导入；支持 .png/.jpg/.jpeg/.bmp/.tif/.tiff
+- 排序：按名称或日期
+- 输出：选择目标视频文件（建议 .mp4）
+- 参数：FPS、分辨率（预设或自定义）、宽高比（保持/拉伸）、质量（高/标准/压缩）
+- 细节：自动将奇数宽高修正为偶数；编码器自动回退确保生成成功
 
-除了图形界面，Nebula Python Wrapper 还提供了命令行工具，适合批处理和自动化脚本。
+提示：关于编码器兼容性、黑边/拉伸说明与常见问题，见 README 的“图像转视频 GUI”章节。
 
-### 可用命令
+## 4. 命令/脚本入口
 
-1. **SEM 分析**
+除了 GUI，本项目还提供若干可直接运行的脚本，适合批处理与自动化：
 
-   ```bash
-   nebula-sem-analysis <input_file>
-   ```
+### 常用脚本
 
-2. **STL 到 TRI 转换**
+1) 运行 SEM 分析（按需调整脚本内部路径）
 
-   ```bash
-   python source/process_stl_to_tri.py <input_stl> <output_tri> [options]
-   ```
+```bash
+python source/sem-analysis.py
+```
 
-   选项：
-   - `--scale <value>`: 缩放因子
-   - `--translate <x,y,z>`: 平移向量
+2) 运行完整仿真（自动生成 .tri/.pri 并调用 Nebula）
 
-3. **生成 PRI 文件**
+```bash
+python source/auto_run_simulation.py
+```
 
-   ```bash
-   python source/sem_pri.py <output_file> [options]
-   ```
+3) 使用 Makefile 快捷命令（可选）
 
-   选项：
-   - `--energy <value>`: 电子束能量 (eV)
-   - `--epx <value>`: 每个像素的电子数量
-   - `--sigma <value>`: 光束斑点大小 (nm)
+```bash
+make install       # 安装依赖
+make gui           # 启动图像转视频 GUI
+make sem           # 运行 sem-analysis.py
+make sim           # 运行 auto_run_simulation.py
+make format        # 代码格式化（black/isort）
+make lint          # 代码检查（ruff）
+```
 
-4. **运行完整工作流程**
+注意：部分旧版文档中提到的 shell 脚本与命令（如 `run_tri_pri_generator.sh`、`nebula-sem-analysis` 控制台命令）在当前仓库中并未提供，请以上述脚本为准。
 
-   ```bash
-   ./run_tri_pri_generator.sh
-   ```
-
-## 5. 编程接口使用
+## 5. 编程接口使用（示例）
 
 Nebula Python Wrapper 提供了 Python 编程接口，允许您在自己的脚本中使用其功能。
 
 ### 导入模块
 
 ```python
-# 导入 SEM 电子束数据生成模块
-from source.sem_pri import generate_sem_pri_data
+# TRI/PRI 生成与 Nebula 运行（简要示例）
+from source.parameters import tri_parameters, pri_parameters
+from source.run_nebula import nebula_gpu
+import pathlib
 
-# 导入 STL 到 TRI 转换模块
-from source.process_stl_to_tri import process_stl_to_tri
+stl_path = pathlib.Path('/path/to/model.stl')
+mesh_path = stl_path.parent / 'mesh_out'
 
-# 导入体素到网格转换模块
-from source.voxel_to_mesh import run_interface
+# 1) 生成 TRI
+TRI = tri_parameters(
+   stl_path=stl_path,
+   mesh_path=mesh_path,
+   beam_type='electron',
+   sample_tilt_x=0,
+   sample_tilt_y=0,
+   sample_tilt_new_z=0,
+   det_tilt_x=76.8,
+)
+v, faces, d_zmin, d_zmax, tri_file_path, R = TRI.run()
+
+# 2) 生成 PRI（示意）
+PRI = pri_parameters(
+   pri_dir=str(stl_path.parent),
+   pixel_size=2,
+   energy=500,
+   epx=500,
+   sigma=1.0,
+   poisson=True,
+   roi_x_min=-256, roi_x_max=255,
+   roi_y_min=-256, roi_y_max=255,
+   d_zmin=d_zmin, d_zmax=d_zmax,
+)
+pri_file_path = PRI.run()
+
+# 3) 调用 Nebula 运行
+nebula_exe = pathlib.Path('source/nebula_gpu')  # 修改为你的可执行文件路径
+det_out = stl_path.parent / 'output.det'
+cmd = f'"{nebula_exe}" "{tri_file_path}" "{pri_file_path}" /path/to/materials/silicon.mat > "{det_out}"'
+
+NEBULA = nebula_gpu(command=cmd, sem_simu_result=str(det_out), image_path=tri_file_path.with_suffix('.png'))
+NEBULA.run()
 ```
 
 ### 生成 SEM 电子束数据
@@ -458,6 +454,12 @@ for energy in energies:
         # 运行模拟并分析结果
         # ...
 ```
+
+## 11. 更多资料
+
+- 快速上手（一页速查）：docs/QuickStart.md
+- 项目结构与流程：PROJECT_DOCUMENTATION.md（含 Mermaid 流程图）
+- 设计细节与技术说明：TECHNICAL_DOCUMENTATION.md
 
 ## 结语
 
