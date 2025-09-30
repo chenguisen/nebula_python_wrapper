@@ -11,6 +11,16 @@ from run_nebula import nebula_gpu
 from save_parameters import add_frame_to_parameters, save_parameters
 import numpy as np
 
+# 这个脚本用于自动化运行nebula_gpu模拟,用于不同模型的自动模拟
+# 主要步骤包括：
+# 1. 设置参数
+# 2. 生成.tri文件和.pri文件
+# 3. 运行nebula_gpu模拟
+# 4. 分析模拟结果
+# 5. 保存模拟结果
+# 6. 分析模拟结果
+# 7. 保存模拟结果图像
+# 8. 保存相机参数
 
 # 生成.tri文件和.pri文件的函数
 # 默认示例
@@ -33,24 +43,24 @@ import numpy as np
 # 总之，电子束和离子束都不用倾转。
 
 rotate_angle_start = 0  # 绕x轴旋转旋转一定角度后，以样品新的法线方向为轴的旋转角度,单位为度
-rotate_angle_stop = 90  # 旋转终止角度
-rotate_angle_step = 45  # 旋转步长
+rotate_angle_stop = 360  # 旋转终止角度
+rotate_angle_step = 10  # 旋转步长
 rotate_angle_list = np.arange(rotate_angle_start, rotate_angle_stop, rotate_angle_step)
 roi_array = [-256, 255, -456, 55]  # [roi_x_min, roi_x_max, roi_y_min, roi_y_max]
 sample_tilt_x = 55  # 样品绕x轴旋转的角度
 pixel_size = 2  # 像素大小，单位为nm
 energy = 500  # 电子束能量，单位为keV
-epx = 500  # 每像素电子数
+epx = 1000  # 每像素电子数
 
-stl_path = pathlib.Path('D:/AISI/ZZZ/nebula_data/4_Trench Milling.stl')
+stl_path = pathlib.Path('/home/chenguisen/AISI/nebula/simulation_results/9_Ucut/9_Ucut.stl')
 mesh_path = os.path.join(os.path.dirname(stl_path))
 
-mat_paths_list =[pathlib.Path('D:/AISI/ZZZ/nebula_data/silicon.mat')]
+mat_paths_list =[pathlib.Path('/home/chenguisen/AISI/nebula/data/silicon.mat')]
 
-#nebula_gpu_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/source/nebula_gpu"
+nebula_gpu_path = "/home/chenguisen/AISI/nebula/nebula_python_wrapper/source/nebula_gpu"
 import platform
-nebula_gpu_path = pathlib.Path("D:/AISI/ZZZ/nebula_python_wrapper/source/mynebula.exe" if platform.system() == "Windows" else "mynebula")
-output_path = pathlib.Path("D:/AISI/ZZZ/nebula_data/output.det")
+#nebula_gpu_path = pathlib.Path("D:/AISI/ZZZ/nebula_python_wrapper/source/mynebula.exe" if platform.system() == "Windows" else "mynebula")
+output_path = pathlib.Path("/home/chenguisen/AISI/nebula/data/output.det")
 pri_file_path = None
 for rotate_angle in rotate_angle_list:
     print(f"rotate_angle: {rotate_angle}",'\n\n')
@@ -70,7 +80,7 @@ for rotate_angle in rotate_angle_list:
 
     if rotate_angle == rotate_angle_start:
         PRI = pri_parameters(
-            mesh_path=mesh_path,
+            pri_dir=mesh_path,
             pixel_size=pixel_size,  # 像素大小，单位为nm
             energy=energy,
             epx=epx,       # 每像素电子数
@@ -113,7 +123,7 @@ for rotate_angle in rotate_angle_list:
         command = f'"{nebula_gpu_path}" "{tri_file_path}" "{pri_file_path}" {mat_paths_quoted} > "{output_path}"'
     
     print(f"运行命令: {command}")
-    image_path = pathlib.Path(tri_file_path).with_suffix(".png")
+    image_path = pathlib.Path("/home/chenguisen/AISI/nebula/simulation_results/9_Ucut", f"{rotate_angle:03d}.png")
     
     try:
         print(f"[DEBUG] 完整命令: {command}")

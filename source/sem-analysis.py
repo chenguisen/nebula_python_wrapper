@@ -37,7 +37,7 @@ H, xedges, yedges = np.histogram2d(data['px'], data['py'],
 	])
 
 # Make a plot
-plt.imshow(H.T, cmap='gray', vmin=0)
+plt.imshow(H.T, cmap='gray', vmin=0,origin='lower')
 plt.colorbar()
 plt.xlabel('x pixel')
 plt.ylabel('y pixel')

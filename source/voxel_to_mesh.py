@@ -1,13 +1,11 @@
 import os
 os.environ['PYOPENGL_PLATFORM'] = 'egl' 
-# import ctypes
-# ctypes.cdll.LoadLibrary('/usr/lib/x86_64-linux-gnu/libGL.so')
 import pathlib
 from skimage import io
 import time
 import numpy as np
 import torch
-#from torchmcubes import marching_cubes
+from torchmcubes import marching_cubes
 import random
 import math
 import trimesh  # 用于读取STL文件
@@ -108,41 +106,19 @@ def generate_mesh_from_stl(stl_path, output_path, final_side=1000, scale=10, sam
             R = torch.tensor(R, dtype=torch.float32).to('cuda' if torch.cuda.is_available() else 'cpu')
             points = torch.stack([v[:, 0], v[:, 1], v[:, 2]], dim=1)
             rotated_points = torch.mm(points, R.T)  # 矩阵乘法
-
-
-        # # 生成旋转矩阵
-        # kx, ky, kz = rotation_axis
-        # cos_tz = torch.cos(tilt_new_z_rad_tensor)
-        # sin_tz = torch.sin(tilt_new_z_rad_tensor)
-        
-        # # 外积矩阵 k * k^T
-        # outer = torch.tensor([
-        #     [kx * kx, kx * ky, kx * kz],
-        #     [ky * kx, ky * ky, ky * kz],
-        #     [kz * kx, kz * ky, kz * kz]
-        # ], device=v.device)
-        
-        # # 叉积矩阵 [k]_x
-        # cross = torch.tensor([
-        #     [0, -kz, ky],
-        #     [kz, 0, -kx],
-        #     [-ky, kx, 0]
-        # ], device=v.device)
-        
-        # # 旋转矩阵
-        # R = cos_tz * torch.eye(3, device=v.device) + \
-        #     (1 - cos_tz) * outer + \
-        #     sin_tz * cross
-        
-        # 保存原始坐标并应用旋转矩阵
-        # points = torch.stack([v[:, 0], v[:, 1], v[:, 2]], dim=1)
-        # rotated_points = torch.mm(points, R.T)  # 矩阵乘法
-        
         # 更新顶点坐标
         v[:, 0] = rotated_points[:, 0]
         v[:, 1] = rotated_points[:, 1]
         v[:, 2] = rotated_points[:, 2]
+    else:
+        R = torch.tensor(rotation_matrix(rotate_angle=sample_tilt_new_z), dtype=torch.float32).to('cuda' if torch.cuda.is_available() else 'cpu')
+        points = torch.stack([v[:, 0], v[:, 1], v[:, 2]], dim=1)
+        rotated_points = torch.mm(points, R.T)  # 矩阵乘法
 
+        # 更新顶点坐标
+        v[:, 0] = rotated_points[:, 0]
+        v[:, 1] = rotated_points[:, 1]
+        v[:, 2] = rotated_points[:, 2]
 
 
     # 因为模型中心在坐标原点

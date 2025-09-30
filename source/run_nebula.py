@@ -10,12 +10,7 @@ class nebula_gpu:
         self.sem_simu_result = sem_simu_result
         self.image_path = image_path
     def run(self):
-        try:
-            import time
-            import re
-            import platform
-            import threading
-            
+        try:           
             # 打印调试信息
             print(f"[DEBUG] 执行命令: {self.command}")
             print(f"[DEBUG] 操作系统: {platform.system()}")

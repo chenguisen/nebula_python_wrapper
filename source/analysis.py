@@ -38,7 +38,7 @@ def sem_analysis(sem_simu_result,image_path, plot = False, save = False):
 		])
 
 	if save:
-		plt.imsave(image_path, H.T, cmap='gray')
+		plt.imsave(image_path, H.T, cmap='gray', dpi=300,origin='lower')
 	if plot:
 		# Make a plot
 		plt.imshow(H.T, cmap='gray')

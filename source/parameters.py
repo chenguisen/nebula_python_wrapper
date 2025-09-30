@@ -55,10 +55,10 @@ class pri_parameters:
         d_zmin (float): Z 轴最小值。
         d_zmax (float): Z 轴最大值。
     """
-    def __init__(self, mesh_path, pixel_size, energy, epx, sigma, poisson,
+    def __init__(self, pri_dir, pixel_size, energy, epx, sigma, poisson,
                  roi_x_min, roi_x_max, roi_y_min, roi_y_max, d_zmin, d_zmax):
         
-        self.mesh_path = mesh_path
+        self.pri_dir = pri_dir
         self.pixel_size = pixel_size
         self.energy = energy
         self.epx = epx
@@ -88,7 +88,7 @@ class pri_parameters:
             print(f"束入射方向: {beam_incident_dir}")
             
             # 生成.pri文件
-            pri_file_path = pathlib.Path(self.mesh_path)/'sem.pri'
+            pri_file_path = pathlib.Path(self.pri_dir)/'sem.pri'
 
             # 计算束的z位置，使用tri类传出的d_zmax和d_zmin值
             beam_zmax = (self.d_zmax + self.d_zmin) / 2
