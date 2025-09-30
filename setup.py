@@ -10,6 +10,7 @@ setup(
         'matplotlib',
         'PyQt6',
         'PyQt6-WebEngine',
+        'opencv-python',
     ],
     entry_points={
         'console_scripts': [
