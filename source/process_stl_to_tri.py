@@ -2,6 +2,7 @@ import numpy as np
 from stl import mesh
 import os
 import sys
+import argparse
 
 # 常量定义
 SCALE_FACTOR = 20  # 坐标缩放因子
@@ -74,8 +75,18 @@ def process_stl_to_tri(input_path, output_path=None, scale_factor=SCALE_FACTOR):
         print(f"错误: {str(e)}", file=sys.stderr)
         return 0, None
 
+def _build_cli():
+    parser = argparse.ArgumentParser(description='Convert STL to TRI format')
+    parser.add_argument('input_stl', help='Path to input .stl file')
+    parser.add_argument('output_tri', nargs='?', help='Path to output .tri file; default: <input>.tri')
+    parser.add_argument('--scale', type=float, default=SCALE_FACTOR, help='Scale factor for coordinates (default: %(default)s)')
+    return parser
 
+def main():
+    parser = _build_cli()
+    args = parser.parse_args()
+    process_stl_to_tri(args.input_stl, args.output_tri, scale_factor=args.scale)
 
-# 执行转换
-process_stl_to_tri('/home/chenguisen/AISI/nebula/model3d/4_Trench Milling.stl', '/home/chenguisen/AISI/nebula/model3d/4_TrenchMilling.tri')
+if __name__ == '__main__':
+    main()
 

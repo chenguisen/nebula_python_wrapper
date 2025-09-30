@@ -9,12 +9,6 @@ setup(
         'numpy',
         'matplotlib',
         'PyQt6',
-        'PyQt6-WebEngine',
         'opencv-python',
     ],
-    entry_points={
-        'console_scripts': [
-            'nebula-sem-analysis=nebula_python_wrapper.sem_analysis:main',
-        ],
-    },
 )

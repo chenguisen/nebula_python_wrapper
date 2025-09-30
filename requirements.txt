@@ -1,5 +1,5 @@
 numpy
 matplotlib
 PyQt6
-PyQt6-WebEngine
 opencv-python
+numpy-stl

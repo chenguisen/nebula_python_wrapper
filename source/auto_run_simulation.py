@@ -73,7 +73,7 @@ rotate_angle_list = np.arange(rotate_angle_start, rotate_angle_stop, rotate_angl
 roi_array = [-256, 255, -456, 55]  # [roi_x_min, roi_x_max, roi_y_min, roi_y_max]
 sample_tilt_x = 0  # 样品绕x轴旋转的角度
 pixel_size = 2  # 像素大小，单位为nm
-energy = 500  # 电子束能量，单位为keV
+energy = 500  # 电子束能量，单位：eV
 epx = 500  # 每像素电子数
 
 
@@ -87,7 +87,7 @@ for stl_path in stl_list:
     os.makedirs(save_dir, exist_ok=True)
     
     # 创建相机参数保存路径
-    parameters_path = os.path.join(save_dir, "carame_parameters.json")
+    parameters_path = os.path.join(save_dir, "camera_parameters.json")
 
 
     mesh_path = save_dir
