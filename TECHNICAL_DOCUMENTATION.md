@@ -28,7 +28,7 @@
 ```python
 electron_dtype = np.dtype([
     ('x',  '=f'), ('y',  '=f'), ('z',  '=f'),  # 位置
-    ('dx', '=f'), ('dy', '=f'), ('dz', '=f'),  # 方向
+## 1. SEM 电子束数据生成 (更新)
     ('E',  '=f'),                              # 能量
     ('px', '=i'), ('py', '=i')                 # 像素索引
 ])
@@ -86,6 +86,34 @@ z_r = y * sin_tx + z * cos_tx
 探测器使用三角形网格表示，其位置和方向可以通过以下参数调整：
 
 - **探测器倾转角**：通常为电子束成像时的 76.8 度或离子束成像时的 0 度、55 度等
+```python
+def run_interface(
+                voxel_path,              # STL/体素数据路径（本项目常用 STL）
+                mesh_path,               # 输出目录（生成 .tri 文件）
+                final_side=1000,         # 目标尺寸（边长）；STL 流程中以 bbox 最大边为基准
+                scale=10,                # 顶点坐标缩放因子（STL -> nm 便于计算）
+                sample_tilt_x=0,         # 样品绕 X 轴倾转角
+                sample_tilt_y=0,         # 样品绕 Y 轴倾转角
+                sample_tilt_new_z=0,     # 倾转后绕样品法线方向的旋转角（由 rotation_matrix 计算）
+                det_tilt_x=0,            # 探测器绕 X 轴倾转角（用于探测器面片）
+                pad_scale=1.0,           # 体素流程使用（STL 流程忽略）
+                length=64,               # 体素流程使用（STL 流程忽略）
+                reverse=False            # 体素流程使用（STL 流程忽略）
+                ):
+```
+
+说明：STL 流程中读取三角网格（trimesh），按 `scale` 放大并以 bbox 居中；随后应用倾转与绕法线旋转矩阵 `R`（见 `rotation_matrix.py`），再写出 TRI。函数返回：`v, faces, d_zmin, d_zmax, tri_file_path, R`，其中 `d_zmin/d_zmax` 来源于探测器三角形的 z 范围，用于生成 .pri 时确定电子束 z 位置。
+
+附加：TRI 生成与材料编码约定（节选）
+- 样品三角形行：`0 -123 x y z x1 y1 z1 x2 y2 z2`
+- 探测器三角形行：`-125 -125 ...`（36 边近似圆，支持 `det_tilt_x` 旋转并上移 z+=34，最终统一转纳米）
+- 环境封闭面：`-122 -122`（墙）、`-127 -127`（底面）
+
+Nebula 可执行调用与进度监控（run_nebula.py 摘要）
+- `nebula_gpu.run()` 使用 `subprocess.Popen(..., shell=True)` 执行完整命令（含重定向），并监听 stderr：
+    - 检测 `running: 0 | detected: 0` 时终止进程并提示优化输入
+    - 检测到 `Progress 100.00%` 后等待 20 秒仍未退出则主动终止，随后继续展示结果
+- 结果展示通过 `analysis.sem_analysis` 将 `.det` 转图并保存
 - **探测器位置**：相对于样品的位置，通常放置在样品上方
 
 ### 3.2 电子-探测器相互作用
@@ -309,3 +337,101 @@ def run_interface(
         det_tilt_x=0         # 探测器倾转角
         ):
 ```
+
+## 11. 图像转视频模块（images_to_video_gui.py）
+
+本模块提供一个基于 PyQt6 的桌面 GUI，用于选择多张图片并生成视频。核心设计点如下：
+
+### 11.1 架构与线程模型
+
+- UI 层：`ImageToVideoApp(QMainWindow)`
+    - 图片选择与路径列表展示（支持多次添加、跨文件夹）
+    - 排序（按文件名 / 修改时间）
+    - 输出参数设置：帧率、分辨率（预设/自定义）、宽高比策略（保持/拉伸）、质量（高/标准/压缩）
+    - 进度条与消息弹窗
+- 工作线程：`VideoGeneratorThread(QThread)`
+    - 输入：`image_paths: List[str]`, `output_path: str`, `fps: int`, `size: Optional[Tuple[int,int]]`, `keep_aspect: bool`, `quality: int`
+    - 信号：`progress_updated(int)`, `finished(str)`, `error_occurred(str)`
+    - 作用：在子线程中串行加载图片、尺寸适配、写入视频帧，避免 UI 阻塞
+
+数据流（简要“契约”）：
+- 输入：N 张图片路径，目标视频参数（fps、size、策略/质量）
+- 过程：逐图读取 → 尺寸适配（保持/拉伸 + 插值）→ 写帧
+- 输出：视频文件（mp4/avi），进度 0→100，错误通过信号上报
+
+### 11.2 尺寸与插值策略
+
+- 若未指定 size，自动使用首张图片尺寸
+- `keep_aspect=True`：按比例缩放后在画布居中贴图，空白处填充黑色；`False`：直接缩放到目标尺寸
+- 插值方法基于质量等级选择：
+    - 高质量：`cv2.INTER_CUBIC`
+    - 标准：`cv2.INTER_LINEAR`
+    - 压缩：`cv2.INTER_AREA`
+- 为兼容部分编码器，强制将目标宽高调整为偶数
+
+### 11.3 编码器与回退策略
+
+尝试顺序：
+1. HEVC/H.265（fourcc: `hev1`）
+2. H.264（fourcc: `avc1`）
+3. MPEG-4（fourcc: `mp4v`）
+
+若当前 OpenCV 构建不支持前两者，自动回退到 `mp4v` 确保生成成功。容器建议优先 `.mp4`，兼容性较好；如失败可尝试 `.avi`。
+
+### 11.4 错误处理与健壮性
+
+- I/O 错误与读取失败：对每张图片 `cv2.imread` 失败立即抛错并由 `error_occurred` 信号透传
+- 写入失败：`cv2.VideoWriter.isOpened()` 多次回退后仍失败则报错
+- 取消与退出：UI 关闭时若线程仍运行，调用 `stop()` 设置 `_is_running=False` 并等待线程结束
+- 大批量图片：>100 张时弹出确认，避免误操作
+
+### 11.5 性能与内存
+
+- 单线程串行处理，适合 I/O 密集且便于保证顺序
+- 内存占用主要来自当前帧，适合中等分辨率与中等数量图片
+- 超大分辨率或超长序列建议：降低分辨率/质量；或将后续扩展为流式/分块读取
+
+### 11.6 兼容性注意
+
+- 不同平台 OpenCV 的可用编码器不同；Linux 上常见 `mp4v` 可用，HEVC/H.264 取决于构建
+- 生成失败时优先检查：输出路径权限、后缀（.mp4/.avi）、分辨率是否过大
+
+## 12. 工程化配置与开发流程
+
+为便于统一风格与提高开发效率，项目提供以下配置与工具：
+
+- 代码风格配置（`pyproject.toml`）
+    - black：`line-length=100`
+    - isort：`profile=black`
+    - ruff：启用常见规则（E/F/I），忽略 `source/__pycache__`
+- 开发依赖（`requirements-dev.txt`）：`ruff`, `black`, `isort`
+- Makefile 常用目标：
+    - `make install`：安装运行依赖
+    - `make install-dev`：安装开发依赖
+    - `make format`：black + isort 格式化
+    - `make lint`：ruff 检查
+    - `make gui`：运行图像转视频 GUI
+    - `make sem`：运行 `sem-analysis.py`
+    - `make sim`：运行 `auto_run_simulation.py`
+- VS Code（可选，本仓库默认忽略 `.vscode/`）：
+    - `tasks.json`：一键运行 GUI/脚本、安装依赖、格式化、lint
+    - `extensions.json`：推荐扩展（Python、Pylance、Ruff、Black、Jupyter）
+
+## 13. 兼容性与部署建议
+
+- Python 版本：建议 3.9+（项目含 `__pycache__` 的 py3.13 字节码，实际运行版本需与本地环境匹配）
+- OpenCV 编码器：
+    - 若需 HEVC/H.264，请使用包含相应编解码支持的构建；否则使用 `.mp4` + `mp4v` 以保证成功
+    - 分辨率需为偶数，过大分辨率在低配机器上可能失败
+- GUI 运行环境：需具备图形桌面与 `PyQt6`；服务器环境建议后续扩展 CLI 无头模式
+
+## 14. 测试与验证建议
+
+- 单元测试（建议新增）：
+    - 参数解析与尺寸计算：`_get_video_size`、偶数宽高修正
+    - 排序功能：按名称/日期排序是否稳定
+- 集成测试：
+    - 用 5~10 张小图（如 640x480）生成短视频（2~3 秒）验证编码器回退逻辑
+    - 生成 `.mp4` 与 `.avi`，确保至少有一种容器成功
+- 压力测试（手动）：
+    - 1000 张以上、1080p/4K，观察内存与耗时，指导用户参数建议
